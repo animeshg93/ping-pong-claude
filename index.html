@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PING PONG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #11111a;
+    --table-green: #1a3a2a;
+    --table-line: #2a5a40;
+    --net: #c8c8d0;
+    --red: #ff2244;
+    --blue: #2277ff;
+    --white: #ffffff;
+    --text: #e0e0e8;
+    --muted: #555566;
+    --gold: #f0c040;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Title */
+  .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 0.25em;
+    color: var(--text);
+    margin-bottom: 8px;
+    opacity: 0.85;
+  }
+
+  /* Scoreboard */
+  .scoreboard {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 14px;
+  }
+  .score-block {
+    text-align: center;
+  }
+  .score-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .score-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.6rem;
+    line-height: 1;
+  }
+  .score-num.red { color: var(--red); }
+  .score-num.blue { color: var(--blue); }
+  .score-divider {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--muted);
+    opacity: 0.4;
+  }
+
+  /* Controls row */
+  .controls-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .diff-btn {
+    background: none;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .diff-btn:hover { border-color: var(--text); color: var(--text); }
+  .diff-btn.active-easy { border-color: #44cc66; color: #44cc66; }
+  .diff-btn.active-medium { border-color: var(--gold); color: var(--gold); }
+  .diff-btn.active-hard { border-color: var(--red); color: var(--red); }
+  .start-btn {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding: 6px 20px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    margin-left: 8px;
+  }
+  .start-btn:hover { background: var(--white); }
+
+  /* Canvas wrapper */
+  .canvas-wrap {
+    position: relative;
+    border: 1px solid #222233;
+    box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 120px rgba(0,0,0,0.5);
+  }
+  canvas { display: block; }
+
+  /* Overlay */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,10,15,0.85);
+    gap: 12px;
+    transition: opacity 0.3s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    letter-spacing: 0.2em;
+    color: var(--text);
+  }
+  .overlay-sub {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-align: center;
+    line-height: 1.7;
+  }
+  .winner-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+  }
+  .winner-text.red { color: var(--red); }
+  .winner-text.blue { color: var(--blue); }
+
+  .hint {
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-top: 16px;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="title">PING · PONG</div>
+
+<div class="scoreboard">
+  <div class="score-block">
+    <div class="score-label">YOU</div>
+    <div class="score-num red" id="playerScore">0</div>
+  </div>
+  <div class="score-divider">—</div>
+  <div class="score-block">
+    <div class="score-label">CPU</div>
+    <div class="score-num blue" id="cpuScore">0</div>
+  </div>
+</div>
+
+<div class="controls-row">
+  <button class="diff-btn active-easy" id="btnEasy" onclick="setDifficulty('easy')">Easy</button>
+  <button class="diff-btn" id="btnMedium" onclick="setDifficulty('medium')">Medium</button>
+  <button class="diff-btn" id="btnHard" onclick="setDifficulty('hard')">Hard</button>
+  <button class="start-btn" id="startBtn" onclick="startGame()">Start</button>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="overlay">
+    <div class="overlay-title" id="overlayTitle">PING PONG</div>
+    <div class="winner-text hidden" id="winnerText"></div>
+    <div class="overlay-sub" id="overlaySub">Move mouse to control your paddle<br>First to 7 wins the set</div>
+    <div class="hint" id="overlayHint">Press START or click to begin</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Dimensions
+const W = 700, H = 440;
+canvas.width = W; canvas.height = H;
+
+// Game state
+let state = 'idle'; // idle | playing | paused | over
+let difficulty = 'easy';
+let playerScore = 0, cpuScore = 0;
+const WIN_SCORE = 7;
+
+// Paddle dims
+const PAD_W = 14, PAD_H = 72;
+const PAD_MARGIN = 18;
+const BALL_R = 7;
+
+// Physics
+let ball, player, cpu;
+let animId;
+
+// Mouse
+let mouseY = H / 2;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseY = e.clientY - rect.top;
+});
+
+// ── Audio ─────────────────────────────────────────────
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+
+function resumeAC() { if (AC.state === 'suspended') AC.resume(); }
+
+function beep(freq, type, dur, vol, detune=0) {
+  resumeAC();
+  const o = AC.createOscillator();
+  const g = AC.createGain();
+  o.connect(g); g.connect(AC.destination);
+  o.type = type;
+  o.frequency.setValueAtTime(freq, AC.currentTime);
+  o.detune.setValueAtTime(detune, AC.currentTime);
+  g.gain.setValueAtTime(vol, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+  o.start(AC.currentTime);
+  o.stop(AC.currentTime + dur);
+}
+
+function noiseBurst(dur, vol) {
+  resumeAC();
+  const buf = AC.createBuffer(1, AC.sampleRate * dur, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = AC.createBufferSource();
+  src.buffer = buf;
+  const g = AC.createGain();
+  const f = AC.createBiquadFilter();
+  f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 0.8;
+  src.connect(f); f.connect(g); g.connect(AC.destination);
+  g.gain.setValueAtTime(vol, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+  src.start(AC.currentTime);
+  src.stop(AC.currentTime + dur);
+}
+
+function soundPaddleHit() {
+  beep(300, 'square', 0.07, 0.3);
+  noiseBurst(0.04, 0.15);
+}
+function soundTableBounce() {
+  beep(180, 'triangle', 0.09, 0.25);
+  noiseBurst(0.05, 0.1);
+}
+function soundNetHit() {
+  beep(600, 'sawtooth', 0.12, 0.2);
+  beep(400, 'sine', 0.14, 0.15, -200);
+}
+function soundScore() {
+  beep(220, 'sine', 0.2, 0.3);
+  setTimeout(() => beep(180, 'sine', 0.3, 0.25), 150);
+}
+function soundWin() {
+  [0, 100, 200, 350].forEach((d, i) =>
+    setTimeout(() => beep(330 + i * 80, 'sine', 0.25, 0.3), d)
+  );
+}
+
+// ── Difficulty settings ───────────────────────────────
+const DIFF = {
+  easy:   { cpuSpeed: 2.8, ballSpeed: 4.5, cpuError: 28 },
+  medium: { cpuSpeed: 4.2, ballSpeed: 6.0, cpuError: 12 },
+  hard:   { cpuSpeed: 6.5, ballSpeed: 7.8, cpuError: 3 }
+};
+
+function setDifficulty(d) {
+  difficulty = d;
+  document.getElementById('btnEasy').className   = 'diff-btn' + (d==='easy'   ? ' active-easy'   : '');
+  document.getElementById('btnMedium').className = 'diff-btn' + (d==='medium' ? ' active-medium' : '');
+  document.getElementById('btnHard').className   = 'diff-btn' + (d==='hard'   ? ' active-hard'   : '');
+}
+
+// ── Init / reset ──────────────────────────────────────
+function resetBall(dir = 1) {
+  const angle = (Math.random() * 40 - 20) * Math.PI / 180;
+  const spd = DIFF[difficulty].ballSpeed;
+  ball = {
+    x: W / 2, y: H / 2,
+    vx: dir * spd * Math.cos(angle),
+    vy: spd * Math.sin(angle),
+    trail: []
+  };
+}
+
+function initGame() {
+  playerScore = 0; cpuScore = 0;
+  updateScoreDisplay();
+  player = { x: PAD_MARGIN, y: H/2 - PAD_H/2, w: PAD_W, h: PAD_H };
+  cpu    = { x: W - PAD_MARGIN - PAD_W, y: H/2 - PAD_H/2, w: PAD_W, h: PAD_H };
+  resetBall(Math.random() < 0.5 ? 1 : -1);
+}
+
+function startGame() {
+  resumeAC();
+  if (state === 'playing') return;
+  initGame();
+  state = 'playing';
+  hideOverlay();
+  if (animId) cancelAnimationFrame(animId);
+  loop();
+}
+
+// ── Score ──────────────────────────────────────────────
+function updateScoreDisplay() {
+  document.getElementById('playerScore').textContent = playerScore;
+  document.getElementById('cpuScore').textContent = cpuScore;
+}
+
+function checkWin() {
+  if (playerScore >= WIN_SCORE) { endGame('player'); return true; }
+  if (cpuScore >= WIN_SCORE)    { endGame('cpu'); return true; }
+  return false;
+}
+
+function endGame(winner) {
+  state = 'over';
+  soundWin();
+  showOverlay(winner);
+}
+
+// ── Overlay ────────────────────────────────────────────
+function showOverlay(winner) {
+  const ov = document.getElementById('overlay');
+  const title = document.getElementById('overlayTitle');
+  const wt = document.getElementById('winnerText');
+  const sub = document.getElementById('overlaySub');
+  const hint = document.getElementById('overlayHint');
+  ov.classList.remove('hidden');
+  if (winner === 'player') {
+    title.textContent = 'YOU WIN';
+    wt.textContent = `${playerScore} — ${cpuScore}`;
+    wt.className = 'winner-text red';
+    wt.classList.remove('hidden');
+    sub.textContent = 'Flawless. The table is yours.';
+  } else if (winner === 'cpu') {
+    title.textContent = 'CPU WINS';
+    wt.textContent = `${cpuScore} — ${playerScore}`;
+    wt.className = 'winner-text blue';
+    wt.classList.remove('hidden');
+    sub.textContent = 'Machine precision triumphs.';
+  } else {
+    title.textContent = 'PING PONG';
+    wt.classList.add('hidden');
+    sub.innerHTML = 'Move mouse to control your paddle<br>First to 7 wins the set';
+  }
+  hint.textContent = 'Press START or click to begin';
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+canvas.addEventListener('click', () => {
+  if (state !== 'playing') startGame();
+});
+
+// ── Physics helpers ────────────────────────────────────
+const NET_X = W / 2 - 2, NET_W = 4;
+const TABLE_TOP = 60, TABLE_BOT = H - 60;
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function rectOverlap(bx, by, pad) {
+  return bx + BALL_R > pad.x && bx - BALL_R < pad.x + pad.w &&
+         by + BALL_R > pad.y && by - BALL_R < pad.y + pad.h;
+}
+
+// ── Main loop ──────────────────────────────────────────
+function loop() {
+  if (state !== 'playing') return;
+  update();
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function update() {
+  const cfg = DIFF[difficulty];
+
+  // Move player paddle
+  const targetY = mouseY - PAD_H / 2;
+  player.y = clamp(targetY, TABLE_TOP, TABLE_BOT - PAD_H);
+
+  // CPU AI
+  const cpuCenter = cpu.y + PAD_H / 2;
+  const targetCpu = ball.y + (Math.random() - 0.5) * cfg.cpuError;
+  const diff = targetCpu - cpuCenter;
+  cpu.y += clamp(diff, -cfg.cpuSpeed, cfg.cpuSpeed);
+  cpu.y = clamp(cpu.y, TABLE_TOP, TABLE_BOT - PAD_H);
+
+  // Move ball
+  ball.trail.push({ x: ball.x, y: ball.y });
+  if (ball.trail.length > 8) ball.trail.shift();
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Table bounce (top/bottom rails)
+  if (ball.y - BALL_R <= TABLE_TOP) {
+    ball.y = TABLE_TOP + BALL_R;
+    ball.vy = Math.abs(ball.vy);
+    soundTableBounce();
+  }
+  if (ball.y + BALL_R >= TABLE_BOT) {
+    ball.y = TABLE_BOT - BALL_R;
+    ball.vy = -Math.abs(ball.vy);
+    soundTableBounce();
+  }
+
+  // Net collision
+  const netLeft = NET_X, netRight = NET_X + NET_W;
+  const netTop = H / 2 - 70, netBot = H / 2 + 70;
+  if (ball.x + BALL_R > netLeft && ball.x - BALL_R < netRight &&
+      ball.y + BALL_R > netTop && ball.y - BALL_R < netBot) {
+    if (ball.vx > 0) ball.x = netLeft - BALL_R;
+    else             ball.x = netRight + BALL_R;
+    ball.vx *= -1;
+    ball.vy += (Math.random() - 0.5) * 1.5;
+    soundNetHit();
+  }
+
+  // Player paddle
+  if (rectOverlap(ball.x, ball.y, player)) {
+    ball.x = player.x + player.w + BALL_R;
+    ball.vx = Math.abs(ball.vx) * 1.04;
+    ball.vy += (ball.y - (player.y + PAD_H/2)) * 0.12;
+    ball.vy = clamp(ball.vy, -10, 10);
+    soundPaddleHit();
+  }
+
+  // CPU paddle
+  if (rectOverlap(ball.x, ball.y, cpu)) {
+    ball.x = cpu.x - BALL_R;
+    ball.vx = -Math.abs(ball.vx) * 1.04;
+    ball.vy += (ball.y - (cpu.y + PAD_H/2)) * 0.12;
+    ball.vy = clamp(ball.vy, -10, 10);
+    soundPaddleHit();
+  }
+
+  // Scoring
+  if (ball.x < 0) {
+    cpuScore++;
+    updateScoreDisplay();
+    soundScore();
+    if (!checkWin()) { resetBall(1); }
+  }
+  if (ball.x > W) {
+    playerScore++;
+    updateScoreDisplay();
+    soundScore();
+    if (!checkWin()) { resetBall(-1); }
+  }
+}
+
+// ── Drawing ────────────────────────────────────────────
+function draw() {
+  // Background
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Table surface
+  const tg = ctx.createLinearGradient(0, TABLE_TOP, 0, TABLE_BOT);
+  tg.addColorStop(0, '#152b1f');
+  tg.addColorStop(0.5, '#1c3828');
+  tg.addColorStop(1, '#152b1f');
+  ctx.fillStyle = tg;
+  ctx.fillRect(0, TABLE_TOP, W, TABLE_BOT - TABLE_TOP);
+
+  // Table edge lines
+  ctx.strokeStyle = '#2d6648';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, TABLE_TOP); ctx.lineTo(W, TABLE_TOP); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, TABLE_BOT); ctx.lineTo(W, TABLE_BOT); ctx.stroke();
+
+  // Center line (dashed)
+  ctx.setLineDash([6, 8]);
+  ctx.strokeStyle = '#2d5040';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W/2, TABLE_TOP); ctx.lineTo(W/2, TABLE_BOT); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Side lines (left/right edges of table)
+  ctx.strokeStyle = '#2d6648'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, TABLE_TOP); ctx.lineTo(0, TABLE_BOT); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W, TABLE_TOP); ctx.lineTo(W, TABLE_BOT); ctx.stroke();
+
+  // Net post tops/bottoms
+  drawNet();
+
+  // Ball trail
+  ball.trail.forEach((p, i) => {
+    const a = (i / ball.trail.length) * 0.3;
+    const r = BALL_R * (i / ball.trail.length);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fill();
+  });
+
+  // Ball
+  const bg = ctx.createRadialGradient(ball.x-2, ball.y-2, 1, ball.x, ball.y, BALL_R);
+  bg.addColorStop(0, '#ffffff');
+  bg.addColorStop(1, '#cccccc');
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI*2);
+  ctx.fillStyle = bg;
+  ctx.shadowColor = 'rgba(255,255,255,0.5)';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Player paddle (red)
+  drawPaddle(player, '#ff2244', '#ff6677');
+
+  // CPU paddle (blue)
+  drawPaddle(cpu, '#2277ff', '#66aaff');
+}
+
+function drawNet() {
+  const netH = 140;
+  const netTop = H/2 - netH/2;
+
+  // Net shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(NET_X-1, netTop, NET_W+2, netH);
+
+  // Net body
+  const ng = ctx.createLinearGradient(NET_X, 0, NET_X + NET_W, 0);
+  ng.addColorStop(0, '#a0a0b0');
+  ng.addColorStop(0.5, '#e0e0ee');
+  ng.addColorStop(1, '#a0a0b0');
+  ctx.fillStyle = ng;
+  ctx.fillRect(NET_X, netTop, NET_W, netH);
+
+  // Net grid lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 0.5;
+  for (let y = netTop; y < netTop + netH; y += 12) {
+    ctx.beginPath(); ctx.moveTo(NET_X, y); ctx.lineTo(NET_X + NET_W, y); ctx.stroke();
+  }
+
+  // Net posts (top & bottom)
+  ctx.fillStyle = '#888898';
+  ctx.fillRect(NET_X - 3, netTop - 5, NET_W + 6, 6);
+  ctx.fillRect(NET_X - 3, netTop + netH, NET_W + 6, 6);
+}
+
+function drawPaddle(pad, color1, color2) {
+  const r = 5;
+  const x = pad.x, y = pad.y, w = pad.w, h = pad.h;
+
+  // Shadow
+  ctx.shadowColor = color1;
+  ctx.shadowBlur = 16;
+
+  // Gradient
+  const pg = ctx.createLinearGradient(x, y, x + w, y);
+  pg.addColorStop(0, color2);
+  pg.addColorStop(1, color1);
+
+  ctx.fillStyle = pg;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  ctx.fill();
+
+  // Highlight strip
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(x + 2, y + 4, 2, h - 8);
+}
+
+// ── Init overlay ───────────────────────────────────────
+showOverlay(null);
+draw(); // draw initial frame (empty table)
+// Draw initial static frame
+ball = { x: W/2, y: H/2, vx:0, vy:0, trail:[] };
+player = { x: PAD_MARGIN, y: H/2 - PAD_H/2, w: PAD_W, h: PAD_H };
+cpu = { x: W - PAD_MARGIN - PAD_W, y: H/2 - PAD_H/2, w: PAD_W, h: PAD_H };
+draw();
+</script>
+</body>
+</html>
