@@ -1,0 +1,9 @@
+Create a ping pong game with minimal but sleek UI
+    • It should consist of two paddles. One for the user and one for the system.
+    • The user paddle should be red, system should be blue.
+    • There should be a table on which this game will be played, with a net in the middle.
+    • The game will consist of one set upto 7. First to 7 wins.
+    • There will be 3 difficulty stages: easy, medium, hard.
+    • Make noise every time the ball strikes the paddle, or the table.
+    • Make a different noise when it hits the net.
+    • The ball color should be white
